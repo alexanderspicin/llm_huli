@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.mixins import ListModelMixin
@@ -26,6 +28,16 @@ class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericV
         serializer = UserSerializer(request.user, context={"request": request})
         return Response(status=status.HTTP_200_OK, data=serializer.data)
 
+def preprocess_text(text):
+    text = re.sub(r"[^a-zA-Z\s]", "", text)
+    return text
+def get_embeddings(text: str):
+    tokens = nlp(preprocess_text(text.lower()))
+    word_vectors = [word2vec_model[token.text] for token in tokens if token.text in word2vec_model]
+    if word_vectors:
+        return sum(word_vectors) / len(word_vectors)
+    else:
+        return None
 
 class TextUploadView(APIView):
 
@@ -35,16 +47,28 @@ class TextUploadView(APIView):
         if serializer.is_valid():
             # Process the text (for example, save to database)
             uploaded_text = serializer.validated_data['text']
-            print(uploaded_text)
             # Here you can perform any actions with the uploaded text
             # For example, save it to a database
-            tokens = nlp(preprocess_text(text.lower()))
-            word_vectors = [word2vec_model[token.text] for token in tokens if token.text in word2vec_model]
-            if word_vectors:
-                print(sum(word_vectors) / len(word_vectors))
             # Assuming some hypothetical database model:
             # MyModel.objects.create(text=uploaded_text)
 
+            chunk_size = 200
+            chunk_overlap = 50
+            document_chunks = []
+
+            for i in range(0, len(uploaded_text), chunk_size - chunk_overlap):
+                chunk = uploaded_text[i:i + chunk_size]
+                document_chunks.append(chunk)
+            vectors = []
+            texts = []
+            for text in document_chunks:
+                embedding = get_embeddings(text)
+                if embedding is not None:
+                    vectors.append(embedding)
+                    texts.append(text)
             return Response({"message": "Text uploaded successfully"}, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+a = ""

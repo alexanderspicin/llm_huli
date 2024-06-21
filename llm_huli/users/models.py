@@ -15,7 +15,7 @@ from .managers import UserManager
 nlp = spacy.load("en_core_web_sm") # "ru_core_news_sm"
 
 # загрузка Word2Vec
-word2vec_model_path = 'GoogleNews-vectors-negative300.bin'
+word2vec_model_path = './llm_huli/users/GoogleNews-vectors-negative300.bin'
 word2vec_model = gensim.models.KeyedVectors.load_word2vec_format(word2vec_model_path, binary=True)
 
 class User(AbstractUser):

@@ -1,7 +1,7 @@
 volumes:
   llm_huli_local_postgres_data: {}
   llm_huli_local_postgres_data_backups: {}
-  
+
 
 services:
   django:
