@@ -1,7 +1,9 @@
 import re
 
+import numpy as np
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.mixins import ListModelMixin
 from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.mixins import UpdateModelMixin
@@ -9,9 +11,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
-from llm_huli.users.models import User, word2vec_model, nlp
+from llm_huli.users.models import User, File, word2vec_model, nlp
 
-from .serializers import UserSerializer, TextUploadSerializer
+from .serializers import UserSerializer, TextUploadSerializer, TextFileUploadSerializer, TextFileSerializer
 
 
 class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericViewSet):
@@ -35,23 +37,19 @@ def get_embeddings(text: str):
     tokens = nlp(preprocess_text(text.lower()))
     word_vectors = [word2vec_model[token.text] for token in tokens if token.text in word2vec_model]
     if word_vectors:
-        return sum(word_vectors) / len(word_vectors)
+        return np.mean(word_vectors, axis=0)  # Возвращаем среднее значение по оси 0 (одномерный массив)
     else:
         return None
 
 class TextUploadView(APIView):
 
     def post(self, request):
-        serializer = TextUploadSerializer(data=request.data)
-
+        print(type(request.data))
+        serializer = TextFileUploadSerializer(data=request.data)
         if serializer.is_valid():
-            # Process the text (for example, save to database)
-            uploaded_text = serializer.validated_data['text']
-            # Here you can perform any actions with the uploaded text
-            # For example, save it to a database
-            # Assuming some hypothetical database model:
-            # MyModel.objects.create(text=uploaded_text)
-
+            file = serializer.validated_data['file']
+            # Прочитать весь файл сразу
+            uploaded_text = file.read().decode('utf-8')
             chunk_size = 200
             chunk_overlap = 50
             document_chunks = []
@@ -66,9 +64,12 @@ class TextUploadView(APIView):
                 if embedding is not None:
                     vectors.append(embedding)
                     texts.append(text)
-            return Response({"message": "Text uploaded successfully"}, status=status.HTTP_201_CREATED)
+            print(len(vectors))
+            new_file = File.objects.create(file_vectors=vectors)
+            return Response({'message': 'File uploaded successfully', 'content': new_file})
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-a = ""
+class TextFileDetailView(RetrieveAPIView):
+    queryset = File.objects.all()
+    serializer_class = TextFileSerializer

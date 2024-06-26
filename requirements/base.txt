@@ -24,3 +24,4 @@ scikit-learn
 gensim
 torch
 scipy==1.12.0
+pgvector
